@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASTRO-CTRL — AI Space Traffic Control</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <div class="nav-title">🌌 <span>ASTRO</span>-CTRL</div>
+  <div class="nav-status">
+    <div class="status-live"><div class="live-dot"></div>LIVE</div>
+    <div class="status-sys">|&nbsp;&nbsp;SYS NOMINAL</div>
+  </div>
+</nav>
+
+<!-- SECTION 1: 3D Scene -->
+<div id="scene-section">
+  <canvas id="three-canvas"></canvas>
+  <div id="hud-overlay">
+    <div class="hud-row">
+      <div class="hud-item"><span>🛰</span><span class="hud-label">SAT:</span><span class="hud-count hud-sat" id="hud-sat">5</span></div>
+      <div class="hud-item"><span>⚠</span><span class="hud-label">DEBRIS:</span><span class="hud-count hud-deb" id="hud-deb">18</span></div>
+      <div class="hud-item"><span>🔴</span><span class="hud-label">CRIT:</span><span class="hud-count hud-crit" id="hud-crit">0</span></div>
+      <div class="hud-item"><span>🟡</span><span class="hud-label">WARN:</span><span class="hud-count hud-warn" id="hud-warn">0</span></div>
+    </div>
+  </div>
+
+  <!-- Control Panel overlay -->
+  <div id="ctrl-panel">
+    <div class="ctrl-title">⚙ SIM CONTROLS</div>
+
+    <!-- Speed multiplier -->
+    <div class="ctrl-row">
+      <div class="ctrl-label">
+        <span>⚡ ORBIT SPEED</span>
+        <span class="ctrl-label-val" id="speed-val">1.0x</span>
+      </div>
+      <input type="range" class="ctrl-slider" id="speed-slider"
+        min="0" max="100" value="50"
+        oninput="onSpeedChange(this.value)">
+    </div>
+
+    <div class="ctrl-divider"></div>
+
+    <!-- Satellites -->
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>🛰 SATELLITES</span></div>
+      <div class="ctrl-stepper">
+        <button class="step-btn red" onclick="removeSatellite()">−</button>
+        <div class="step-track"><div class="step-fill sat" id="sat-fill" style="width:25%"></div></div>
+        <span class="step-count sat" id="sat-count">5</span>
+        <button class="step-btn" onclick="addSatellite()">+</button>
+      </div>
+    </div>
+
+    <!-- Debris -->
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>☄ DEBRIS</span></div>
+      <div class="ctrl-stepper">
+        <button class="step-btn red" onclick="removeDebris()">−</button>
+        <div class="step-track"><div class="step-fill deb" id="deb-fill" style="width:36%"></div></div>
+        <span class="step-count deb" id="deb-count">18</span>
+        <button class="step-btn" onclick="addDebris()">+</button>
+      </div>
+    </div>
+
+    <div class="ctrl-divider"></div>
+
+    <!-- Pause/Resume -->
+    <button id="pause-btn" onclick="togglePause()">⏸ PAUSE SIMULATION</button>
+  </div>
+
+</div>
+
+<!-- SECTION 2: AI Pathfinder -->
+<div id="ai-section">
+  <!-- Left: 2D Grid -->
+  <div id="grid-panel">
+    <canvas id="grid-canvas" width="400" height="400"></canvas>
+  </div>
+
+  <!-- Right: Algorithm Info -->
+  <div id="algo-panel">
+    <div class="panel-title">A* PATHFINDING ENGINE</div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">NODES EXPLORED</div>
+        <div class="stat-value cyan" id="stat-nodes">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">PATH LENGTH</div>
+        <div class="stat-value" id="stat-path">--</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">HEURISTIC</div>
+        <div class="stat-value green" style="font-size:11px;letter-spacing:0.5px;line-height:1.4">MANHATTAN<br>DISTANCE</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">ACTIVE SAT</div>
+        <div class="stat-value cyan" id="stat-sat">--</div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-label">STATUS</div>
+      <div id="algo-status" class="status-idle">IDLE</div>
+    </div>
+
+    <div class="heuristic-row">
+      <span>f(n) = g(n) + h(n)</span>
+      <span>h = |Δx| + |Δy|</span>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#0d2035;border:1px solid rgba(0,229,255,0.2)"></div>EMPTY</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,61,61,0.8)"></div>DEBRIS</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>SATELLITE</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>GOAL</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(0,80,180,0.6)"></div>EXPLORED</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>FINAL PATH</div>
+    </div>
+
+    <div id="log-terminal"></div>
+
+    <button id="trigger-btn" onclick="triggerAvoidance()">⚡ TRIGGER AVOIDANCE MANEUVER</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="dash-card">
+    <div class="dash-icon">🛰</div>
+    <div class="dash-value dv-sat" id="db-sat">5</div>
+    <div class="dash-label">ACTIVE SATELLITES</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-icon">⚠</div>
+    <div class="dash-value dv-deb" id="db-deb">18</div>
+    <div class="dash-label">DEBRIS OBJECTS</div>
+  </div>
+  <div class="dash-card" id="db-crit-card">
+    <div class="dash-icon">🔴</div>
+    <div class="dash-value dv-crit" id="db-crit">0</div>
+    <div class="dash-label">CRITICAL ALERTS</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-icon">✅</div>
+    <div class="dash-value dv-safe" id="db-safe">5</div>
+    <div class="dash-label">SAFE ROUTES</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-icon">📡</div>
+    <div class="dash-value dv-man" id="db-man">0</div>
+    <div class="dash-label">MANEUVERS EXECUTED</div>
+  </div>
+</div>
+
+  <!-- JavaScript Modules (order matters) -->
+  <script src="js/globals.js"></script>
+  <script src="js/simulation.js"></script>
+  <script src="js/grid.js"></script>
+  <script src="js/astar.js"></script>
+  <script src="js/controls.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>
