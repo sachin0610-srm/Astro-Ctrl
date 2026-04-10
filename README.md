@@ -1,37 +1,43 @@
-# 🌌 ASTRO-CTRL — AI Space Traffic Control System
+# 🌌 ASTRO-CTRL — AI Space Traffic Control
 
-> Real-time 3D orbital simulation with A\* pathfinding collision avoidance
+A browser-based AI orbital traffic control simulation that uses **A\* pathfinding** to reroute satellites around debris in real time.
+
+Built with **Three.js** for the 3D orbital scene and a custom Canvas 2D renderer for the A\* planning grid.
 
 ---
 
-## 📁 Project Structure
+## 📁 File Structure
 
 ```
 astro-ctrl/
-├── index.html          ← Main entry point
-├── css/
-│   └── style.css       ← All styles, CSS variables, animations
-├── js/
-│   ├── globals.js      ← Global state, constants, cell type enums
-│   ├── simulation.js   ← Three.js 3D scene: Earth, satellites, debris, orbital pivots
-│   ├── grid.js         ← 2D canvas grid setup & drawGrid() renderer
-│   ├── astar.js        ← A* pathfinding algorithm + step animation
-│   ├── controls.js     ← UI helpers, collision detection, add/remove objects, predictive analysis
-│   └── main.js         ← Animation loop (RAF) + initialization sequence
-└── README.md
+├── index.html   — App shell, navigation, and all UI markup
+├── style.css    — All styles (variables, layout, HUD, panels, animations)
+└── script.js    — Three.js scene, A* algorithm, simulation logic
 ```
 
 ---
 
-## 🚀 How to Run
+## 🚀 Features
 
-Just open `index.html` in any modern browser — no build tools, no install needed.
+- **3D Orbital Simulation** — Earth with tilted satellite orbits and randomized debris fields rendered via Three.js
+- **A\* Pathfinding Engine** — Builds a live time-expanded grid from projected orbital occupancy and searches for a safe reroute corridor
+- **Collision Detection** — Per-frame proximity checks flag satellites as SAFE / WARNING / CRITICAL
+- **Predictive Analysis** — Forecasts future satellite–debris convergences and logs warnings
+- **Simulation Controls** — Add/remove satellites and debris, adjust orbit speed, pause/resume
+- **Tab Navigation** — Home → Mission Console → System Notes
+- **Loading Sequence** — Animated boot screen before the mission console appears
+
+---
+
+## 🛠 How to Run
+
+No build step required — just open `index.html` in any modern browser.
 
 ```bash
-# Option 1: direct open
+# Option 1: Open directly
 open index.html
 
-# Option 2: local server (recommended to avoid CORS)
+# Option 2: Serve locally (recommended to avoid CORS on fonts)
 npx serve .
 # or
 python3 -m http.server 8080
@@ -39,36 +45,21 @@ python3 -m http.server 8080
 
 ---
 
-## ⚙️ Features
+## 🧠 Algorithm
 
-| Feature | Description |
-|---|---|
-| 3D Orbital Simulation | Five satellites on unique tilted orbital planes using Three.js pivot groups |
-| Debris Field | 18+ debris objects on independent orbital paths |
-| A\* Pathfinding | Animated step-by-step on a 20×20 grid with Manhattan heuristic |
-| Collision Detection | CRITICAL (<2.0 units) and WARNING (<4.0 units) with auto-trigger |
-| Predictive Analysis | 30-frame lookahead for upcoming collision warnings |
-| Live Controls | Speed slider (0.05×–5×), add/remove satellites & debris, pause/resume |
+The A\* planner builds a **20×20 grid** where:
+- **X-axis** = time steps (future ticks)
+- **Y-axis** = orbital lane (mapped from radius)
+- **Blocked cells** = predicted debris/satellite occupancy at each future tick
 
----
+Heuristic: Manhattan distance `h(n) = |Δx| + |Δy|`
 
-## 🛠️ Tech Stack
-
-- **Three.js r128** — WebGL 3D rendering
-- **Vanilla JS ES6** — async/await, classes, modules
-- **CSS Custom Properties** — full design token system
-- **HTML5 Canvas** — 2D A\* grid visualizer
+A successful path is fed back as an active reroute, visibly changing the satellite's orbit in the 3D scene.
 
 ---
 
-## 🎨 Design System
+## 🎓 Built For
 
-```css
---space-black: #050a0f
---cyan:        #00e5ff   /* primary accent */
---amber:       #ffab00   /* path / alerts */
---green:       #00ff88   /* safe / goal */
---red:         #ff3d3d   /* critical / debris */
-```
-
-Fonts: **Orbitron** (headings) + **Share Tech Mono** (terminal/data)
+AI Course Project — SRMIST KTR  
+Subject: Artificial Intelligence (21CSC305J)  
+Team: **Null_Point** | CINTEL Department

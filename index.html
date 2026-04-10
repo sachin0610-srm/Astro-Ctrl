@@ -1,31 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASTRO-CTRL — AI Space Traffic Control</title>
-
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-
-  <!-- Three.js CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASTRO-CTRL — AI Space Traffic Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="loading-screen">
+  <div class="loader-shell">
+    <div class="loader-kicker">AUTONOMOUS ORBITAL TRAFFIC INITIALIZATION</div>
+    <div class="loader-title"><span>ASTRO</span>-CTRL</div>
+    <p class="loader-copy">
+      Bootstrapping orbital assets, forecasting near-field debris hazards, calibrating the planning lattice,
+      and preparing the autonomous avoidance controller.
+    </p>
+    <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+    <div class="loader-meta">
+      <span id="loader-message">Loading starfield and mission controls...</span>
+      <span id="loader-percent">0%</span>
+    </div>
+  </div>
+</div>
 
-<!-- NAVBAR -->
+<div id="app-shell">
 <nav id="navbar">
-  <div class="nav-title">🌌 <span>ASTRO</span>-CTRL</div>
+  <div class="nav-shell">
+    <div class="nav-title">🌌 <span>ASTRO</span>-CTRL</div>
+    <div class="nav-badge">A* ORBITAL REROUTING</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="tab-btn active" data-view="home-view">Home</button>
+    <button class="tab-btn" data-view="sim-view">Mission</button>
+    <button class="tab-btn" data-view="about-view">System</button>
+  </div>
   <div class="nav-status">
     <div class="status-live"><div class="live-dot"></div>LIVE</div>
-    <div class="status-sys">|&nbsp;&nbsp;SYS NOMINAL</div>
+    <div class="status-sys" id="nav-summary">|&nbsp;&nbsp;SYS NOMINAL</div>
   </div>
 </nav>
 
+<main id="main-content">
+<section class="app-view active" id="home-view">
+  <div class="hero-grid">
+    <section class="hero-card">
+      <div class="hero-kicker">Mission Overview</div>
+      <h1 class="hero-title">AI traffic control for <span>debris-aware</span> orbital routing</h1>
+      <p class="hero-copy">
+        ASTRO-CTRL monitors live satellite traffic, predicts close-approach hazards, builds a planning lattice from
+        projected orbital occupancy, and runs A* search so a threatened spacecraft can shift lanes before debris cuts
+        across its path.
+      </p>
+      <div class="hero-actions">
+        <button class="hero-btn primary" data-view-target="sim-view">Launch Mission Console</button>
+        <button class="hero-btn secondary" data-view-target="about-view">Read System Model</button>
+      </div>
+      <div class="hero-stat-grid">
+        <div class="hero-stat">
+          <div class="label">PLANNING GRID</div>
+          <div class="value">TIME x ORBIT</div>
+        </div>
+        <div class="hero-stat">
+          <div class="label">SEARCH MODE</div>
+          <div class="value">A*</div>
+        </div>
+        <div class="hero-stat">
+          <div class="label">REROUTE TARGET</div>
+          <div class="value">SAFE LANE</div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="home-side">
+      <section class="home-panel">
+        <div class="panel-kicker">What Changed</div>
+        <h2>From concept demo to connected mission simulation</h2>
+        <p>
+          This upgraded single-file version adds a loading sequence, a home/introduction layer, tab-based navigation,
+          and a tighter link between the orbital scene and the planner so the A* panel represents predicted risk
+          instead of a disconnected random map.
+        </p>
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>Intro + Mission Tabs</strong>
+            <span>The app now opens with an initialization screen and a landing page before the live console starts.</span>
+          </div>
+          <div class="feature-item">
+            <strong>Predictive Planner</strong>
+            <span>The grid is prepared from projected traffic and hazard occupancy rather than random debris scattering.</span>
+          </div>
+          <div class="feature-item">
+            <strong>Single-File Delivery</strong>
+            <span>Everything still ships in one HTML file, including the home experience, simulation, and system notes.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="home-panel">
+        <div class="panel-kicker">Mission Loop</div>
+        <h2>How the avoidance flow works</h2>
+        <div class="about-grid">
+          <div class="about-box">
+            <h3>1. Detect</h3>
+            <p>Live collision checks and near-future convergence warnings flag at-risk satellites.</p>
+          </div>
+          <div class="about-box">
+            <h3>2. Project</h3>
+            <p>Satellite and debris motion are projected forward into the planner grid across future ticks.</p>
+          </div>
+          <div class="about-box">
+            <h3>3. Search</h3>
+            <p>A* explores lane/time moves to find a safe corridor through the forecast hazard field.</p>
+          </div>
+          <div class="about-box">
+            <h3>4. Execute</h3>
+            <p>The selected satellite follows the computed avoidance route instead of remaining on its original path.</p>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<section class="app-view" id="sim-view">
 <!-- SECTION 1: 3D Scene -->
 <div id="scene-section">
   <canvas id="three-canvas"></canvas>
@@ -168,14 +268,82 @@
     <div class="dash-label">MANEUVERS EXECUTED</div>
   </div>
 </div>
+</section>
 
-  <!-- JavaScript Modules (order matters) -->
-  <script src="js/globals.js"></script>
-  <script src="js/simulation.js"></script>
-  <script src="js/grid.js"></script>
-  <script src="js/astar.js"></script>
-  <script src="js/controls.js"></script>
-  <script src="js/main.js"></script>
+<section class="app-view" id="about-view">
+  <div class="hero-grid">
+    <section class="hero-card">
+      <div class="hero-kicker">System Notes</div>
+      <h1 class="hero-title">How the <span>A*</span> model maps to orbit</h1>
+      <p class="hero-copy">
+        The planner is intended as a time-expanded orbital model. Each route step pushes the mission one tick
+        forward while allowing a limited lane shift, so the search remains interpretable and tied to the live
+        motion of satellites and debris in the scene.
+      </p>
+      <div class="hero-stat-grid">
+        <div class="hero-stat">
+          <div class="label">LANE MOTION</div>
+          <div class="value">SHIFT / HOLD</div>
+        </div>
+        <div class="hero-stat">
+          <div class="label">SEARCH HORIZON</div>
+          <div class="value">LIVE GRID</div>
+        </div>
+        <div class="hero-stat">
+          <div class="label">GOAL</div>
+          <div class="value">SAFE EXIT</div>
+        </div>
+      </div>
+    </section>
 
+    <aside class="home-side">
+      <section class="home-panel">
+        <div class="panel-kicker">Truthful Scope</div>
+        <h2>What this simulation now does better</h2>
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>Connected Planner State</strong>
+            <span>The route panel is no longer just decorative. It is built for the threatened satellite when a critical event occurs.</span>
+          </div>
+          <div class="feature-item">
+            <strong>Integrated Reroute</strong>
+            <span>A successful A* run now feeds an active reroute state that changes the satellite's motion in the 3D scene.</span>
+          </div>
+          <div class="feature-item">
+            <strong>Mission Onboarding</strong>
+            <span>Users enter through a loader and introduction before stepping into the live mission console.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="home-panel">
+        <div class="panel-kicker">Known Limits</div>
+        <h2>What remains abstracted</h2>
+        <div class="about-grid">
+          <div class="about-box">
+            <h3>No real orbital burns</h3>
+            <p>Lane changes are stylized avoidance maneuvers, not full physics-based transfer calculations.</p>
+          </div>
+          <div class="about-box">
+            <h3>No probabilistic uncertainty</h3>
+            <p>Tracked objects are treated as known exactly, without sensor noise or confidence envelopes.</p>
+          </div>
+          <div class="about-box">
+            <h3>Single active reroute</h3>
+            <p>One avoidance plan runs at a time for clarity and to preserve performance in a single-file build.</p>
+          </div>
+          <div class="about-box">
+            <h3>Educational simplification</h3>
+            <p>The model is explainable and visual first, even though the planning is now tied to live simulation state.</p>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>
+</main>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
