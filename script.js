@@ -22,6 +22,7 @@ let blockedCells = 0;
 let currentPlannerSatId = '--';
 let currentPlannerGoalRow = null;
 let autoDemoTriggered = false;
+let lastRiskSignature = '';
 
 // Cell types
 const EMPTY = 0, DEBRIS_CELL = 1, SAT_START = 2, GOAL = 3,
@@ -318,6 +319,30 @@ function rowToRadius(row) {
   return minR + normalized * (maxR - minR);
 }
 
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function setBarWidth(id, percent) {
+  const el = document.getElementById(id);
+  if (el) el.style.setProperty('--bar-width', `${Math.max(4, Math.min(100, percent))}%`);
+}
+
+function setRailProgress(percent) {
+  const el = document.getElementById('insight-rail-fill');
+  if (el) el.style.width = `${Math.max(4, Math.min(100, percent))}%`;
+}
+
+function setPlannerStage(stage, detail = {}) {
+  const steps = Array.from(document.querySelectorAll('.insight-step'));
+  steps.forEach((step, index) => step.classList.toggle('active', index <= stage));
+  setRailProgress([12, 48, 82, 100][stage] || 12);
+  if (detail.plan) setText('plan-readout', detail.plan);
+  if (detail.route) setText('route-readout', detail.route);
+  if (detail.risk) setText('risk-readout', detail.risk);
+}
+
 function buildPlannerGridForSatellite(sat) {
   grid = [];
   for (let y = 0; y < GRID_SIZE; y++) {
@@ -378,6 +403,10 @@ function buildPlannerGridForSatellite(sat) {
   grid[gridStart.y][gridStart.x] = SAT_START;
   grid[gridGoal.y][gridGoal.x] = GOAL;
   currentPlannerSatId = sat.id;
+  setPlannerStage(1, {
+    plan: `${sat.id}: ${blockedCells} blocked cells, lane ${gridStart.y + 1} to ${gridGoal.y + 1}`,
+  });
+  setBarWidth('lane-danger-bar', Math.min(100, blockedCells * 3));
 }
 
 function drawGrid() {
@@ -486,8 +515,10 @@ async function runAstar(startPos, goalPos, sat) {
 
   logEntry(`> [${getSimTime()}] Satellite ${satId} risk: CRITICAL`, 'crit');
   logEntry(`> [${getSimTime()}] Activating A* pathfinder...`, 'info');
+  setPlannerStage(1, { plan: `${satId}: scanning shortest safe lane route` });
   await sleep(200);
   setStatus('COMPUTING', 'status-computing');
+  setPlannerStage(2, { plan: `A* exploring with Manhattan heuristic` });
 
   while (openSet.length > 0) {
     // Get lowest f
@@ -532,6 +563,11 @@ async function runAstar(startPos, goalPos, sat) {
       document.getElementById('stat-path').textContent = `${path.length} STEPS`;
       setStatus('PATH FOUND', 'status-found');
       logEntry(`> [${getSimTime()}] Path found! ${path.length} steps. Rerouting...`, 'path');
+      setPlannerStage(3, {
+        plan: `Shortest safe path: ${path.length} grid steps`,
+        route: `${satId}: lane ${startPos.y + 1} -> ${goalPos.y + 1}`,
+      });
+      setBarWidth('lane-path-bar', Math.min(100, path.length * 5));
 
       // Animate satellite movement
       await sleep(200);
@@ -573,6 +609,23 @@ async function animateSatMovement(path, sat) {
     angle: normalizeAngle(sat.angle + sat.speed * index * 3.5),
   }));
 
+  if (sat.rerouteArc) {
+    scene.remove(sat.rerouteArc);
+    sat.rerouteArc = null;
+  }
+  sat.orbitPivot.updateMatrixWorld(true);
+  sat.mesh.updateMatrixWorld(true);
+  const start = worldPos(sat.mesh);
+  const finalNode = currentReroutePlan[currentReroutePlan.length - 1];
+  const localEnd = new THREE.Vector3(
+    Math.cos(finalNode.angle) * finalNode.radius,
+    0,
+    Math.sin(finalNode.angle) * finalNode.radius
+  );
+  const end = localEnd.applyMatrix4(sat.orbitPivot.matrixWorld);
+  sat.rerouteArc = makeRerouteArc(start, end, 0xffab00);
+  scene.add(sat.rerouteArc);
+
   for (let i = 0; i < path.length; i++) {
     const { x, y } = path[i];
     // Clear previous
@@ -590,6 +643,7 @@ async function animateSatMovement(path, sat) {
   document.getElementById('db-man').textContent = maneuversExecuted;
   const navSummary = document.getElementById('nav-summary');
   if (navSummary) navSummary.textContent = `|  SYS ADAPTIVE  |  ROUTES ${successfulRoutes}`;
+  setPlannerStage(3, { route: `${sat.id}: maneuver complete, route archived` });
 
   // Cleanup
   await sleep(500);
@@ -607,6 +661,12 @@ async function animateSatMovement(path, sat) {
   isRunningAstar = false;
   document.getElementById('trigger-btn').disabled = false;
   activeRouteSat = null;
+  setTimeout(() => {
+    if (sat.rerouteArc) {
+      scene.remove(sat.rerouteArc);
+      sat.rerouteArc = null;
+    }
+  }, 2500);
 }
 
 // ═══════════════════════════════════════════
@@ -813,6 +873,8 @@ function worldPos(mesh) {
 
 function checkCollisions() {
   let critCount = 0, warnCount = 0, safeCount = 0;
+  let globalMin = Infinity;
+  let riskPair = 'No close approach';
 
   // Cache world positions for this frame
   const satWP  = satellites.map(s => worldPos(s.mesh));
@@ -826,6 +888,10 @@ function checkCollisions() {
     for (let j = 0; j < debWP.length; j++) {
       const dist = satWP[i].distanceTo(debWP[j]);
       if (dist < minDist) minDist = dist;
+      if (dist < globalMin) {
+        globalMin = dist;
+        riskPair = `${sat.id} / debris-${j + 1}`;
+      }
     }
 
     // Check against other satellites
@@ -833,6 +899,10 @@ function checkCollisions() {
       if (i === j) continue;
       const dist = satWP[i].distanceTo(satWP[j]);
       if (dist < minDist) minDist = dist;
+      if (dist < globalMin) {
+        globalMin = dist;
+        riskPair = `${sat.id} / ${satellites[j].id}`;
+      }
     }
 
     if (minDist < 2.0) {
@@ -862,6 +932,20 @@ function checkCollisions() {
   if (critCount > 0) { critCard.classList.add('alerting'); }
   else { critCard.classList.remove('alerting'); }
 
+  const riskText = Number.isFinite(globalMin)
+    ? `${riskPair}: ${globalMin.toFixed(2)}u`
+    : 'Closest approach: stable';
+  const riskLevel = critCount > 0 ? 'CRITICAL' : warnCount > 0 ? 'WARNING' : 'SAFE';
+  if (!isRunningAstar) setPlannerStage(critCount > 0 ? 1 : 0, { risk: `${riskLevel} | ${riskText}` });
+  else setText('risk-readout', `${riskLevel} | ${riskText}`);
+  setBarWidth('lane-danger-bar', Number.isFinite(globalMin) ? Math.max(8, 100 - globalMin * 14) : 8);
+
+  const riskSignature = `${riskLevel}:${riskPair}`;
+  if (riskSignature !== lastRiskSignature && (critCount > 0 || warnCount > 0)) {
+    logEntry(`> [${getSimTime()}] ${riskLevel}: nearest object ${riskText}`, critCount > 0 ? 'crit' : 'warn');
+    lastRiskSignature = riskSignature;
+  }
+
   // Auto-trigger A* if new critical
   if (critCount > lastCritCount && !isRunningAstar) {
     const critSat = satellites.find(s => s.status === 'CRITICAL');
@@ -887,11 +971,75 @@ function randomizeGridPositions(sat) {
   drawGrid();
 }
 
+function findMostAtRiskSatellite() {
+  let candidate = satellites[0];
+  let bestDistance = Infinity;
+  const satWP = satellites.map(s => worldPos(s.mesh));
+  const debWP = debrisList.map(d => worldPos(d.mesh));
+
+  for (let i = 0; i < satellites.length; i++) {
+    let minDistance = Infinity;
+    for (const debPos of debWP) minDistance = Math.min(minDistance, satWP[i].distanceTo(debPos));
+    for (let j = 0; j < satWP.length; j++) {
+      if (i !== j) minDistance = Math.min(minDistance, satWP[i].distanceTo(satWP[j]));
+    }
+    if (minDistance < bestDistance) {
+      bestDistance = minDistance;
+      candidate = satellites[i];
+    }
+  }
+  return candidate;
+}
+
+function placeDebrisNearSatellite(sat, debrisIndex = 0, angularOffset = 0.12) {
+  if (!debrisList[debrisIndex]) return;
+  const d = debrisList[debrisIndex];
+  d.radius = sat.radius + 0.08;
+  d.angle = normalizeAngle(sat.angle + angularOffset);
+  d.speed = sat.speed * 1.04;
+  d.pivot.rotation.copy(sat.orbitPivot.rotation);
+  d.mesh.position.set(
+    Math.cos(d.angle) * d.radius,
+    0,
+    Math.sin(d.angle) * d.radius
+  );
+}
+
+function loadScenario(type) {
+  if (type === 'dense') {
+    while (debrisList.length < 34) addDebris();
+    satellites.forEach((sat, index) => {
+      if (index < 3) placeDebrisNearSatellite(sat, index, 0.18 + index * 0.05);
+    });
+    setText('scenario-val', 'DENSE');
+    logEntry(`> [${getSimTime()}] Scenario loaded: dense debris corridor.`, 'warn');
+  } else if (type === 'clear') {
+    while (debrisList.length > 8) removeDebris();
+    debrisList.forEach((d, index) => {
+      d.radius = 6 + (index % 6) * 0.8;
+      d.angle = normalizeAngle(index * 0.78);
+      d.speed = (index % 2 === 0 ? 1 : -1) * 0.009;
+    });
+    setText('scenario-val', 'CLEAR');
+    logEntry(`> [${getSimTime()}] Scenario loaded: low-risk calibration orbit.`, 'info');
+  } else {
+    if (debrisList.length === 0) addDebris();
+    placeDebrisNearSatellite(satellites[0], 0, 0.08);
+    setText('scenario-val', 'CRIT');
+    logEntry(`> [${getSimTime()}] Scenario loaded: SAT-1 close-approach event.`, 'crit');
+    setTimeout(() => {
+      if (!isRunningAstar) triggerAvoidance(satellites[0]);
+    }, 300);
+  }
+  updateCountUI();
+  checkCollisions();
+  randomizeGridPositions(findMostAtRiskSatellite());
+}
+
 // Manual trigger
-function triggerAvoidance() {
+function triggerAvoidance(selectedSat = null) {
   if (isRunningAstar) return;
-  const idx = Math.floor(Math.random() * satellites.length);
-  const sat = satellites[idx];
+  const sat = selectedSat || findMostAtRiskSatellite();
   sat.status = 'CRITICAL';
   if (!sat.critSphere) {
     sat.critSphere = makeCritSphere(0.7);
@@ -902,6 +1050,7 @@ function triggerAvoidance() {
   runAstar(gridStart, gridGoal, sat);
 }
 window.triggerAvoidance = triggerAvoidance;
+window.loadScenario = loadScenario;
 
 // ═══════════════════════════════════════════
 //  PREDICTIVE ANALYSIS
@@ -941,15 +1090,15 @@ function animate() {
   frameCount++;
   critSpherePhase += 0.05;
 
-  // Rotate earth
-  earthGroup.rotation.y += 0.001 * speedMultiplier;
-  clouds.rotation.y += 0.0003 * speedMultiplier;
-
   // Respect pause
   if (isPaused) {
     renderer.render(scene, camera);
     return;
   }
+
+  // Rotate earth
+  earthGroup.rotation.y += 0.001 * speedMultiplier;
+  clouds.rotation.y += 0.0003 * speedMultiplier;
 
   // Update satellites — local XZ of their orbital pivot → stays exactly on its ring
   for (const sat of satellites) {
@@ -1005,12 +1154,23 @@ syncDebrisLists();
 buildPlannerGridForSatellite(satellites[0]);
 drawGrid();
 updateCountUI();
+setPlannerStage(0, {
+  risk: 'SAFE | Closest approach: scanning',
+  plan: `${blockedCells} blocked future cells in current grid`,
+  route: 'Select a scenario or trigger avoidance',
+});
 logEntry(`> [${getSimTime()}] ASTRO-CTRL system initialized.`, 'info');
 logEntry(`> [${getSimTime()}] Tracking ${satellites.length} satellites, 18 debris objects.`, 'info');
 logEntry(`> [${getSimTime()}] A* pathfinding engine: READY.`, 'info');
 logEntry(`> [${getSimTime()}] All systems nominal. Monitoring orbital space...`);
 
 async function runLoadingSequence() {
+  const loader = document.getElementById('loading-screen');
+  if (window.location.hash.toLowerCase().includes('mission')) {
+    loader.classList.add('hidden');
+    loader.style.display = 'none';
+    return;
+  }
   const steps = [
     ['Loading starfield and mission controls...', 16],
     ['Configuring orbital lanes and hazard thresholds...', 38],
@@ -1022,20 +1182,22 @@ async function runLoadingSequence() {
     document.getElementById('loader-message').textContent = message;
     document.getElementById('loader-percent').textContent = `${percent}%`;
     document.getElementById('loader-fill').style.width = `${percent}%`;
-    await sleep(420);
+    await sleep(percent === 100 ? 80 : 260);
   }
-  await sleep(240);
-  document.getElementById('loading-screen').classList.add('hidden');
+  loader.classList.add('hidden');
+  loader.style.display = 'none';
 }
 
 animate();
 runLoadingSequence().then(() => {
+  const hash = window.location.hash.toLowerCase();
+  if (hash.includes('mission')) setActiveView('sim-view');
+  if (hash.includes('critical')) loadScenario('critical');
+  else if (hash.includes('dense')) loadScenario('dense');
   setTimeout(() => {
     if (!isRunningAstar && !autoDemoTriggered) {
       autoDemoTriggered = true;
-      logEntry(`> [${getSimTime()}] Auto-demo: Triggering test avoidance...`, 'warn');
-      setActiveView('sim-view');
-      triggerAvoidance();
+      logEntry(`> [${getSimTime()}] Mission console ready. Load Critical scenario for an instant reroute demo.`, 'info');
     }
   }, 1600);
 });

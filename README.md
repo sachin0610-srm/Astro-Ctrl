@@ -23,6 +23,8 @@ astro-ctrl/
 - **A\* Pathfinding Engine** — Builds a live time-expanded grid from projected orbital occupancy and searches for a safe reroute corridor
 - **Collision Detection** — Per-frame proximity checks flag satellites as SAFE / WARNING / CRITICAL
 - **Predictive Analysis** — Forecasts future satellite–debris convergences and logs warnings
+- **Scenario Console** — Load clear, dense, or critical orbital conditions for repeatable project demonstrations
+- **Visual Route Diagram** — Shows detect → plan → execute state, blocked cells, shortest path length, and active reroute summary
 - **Simulation Controls** — Add/remove satellites and debris, adjust orbit speed, pause/resume
 - **Tab Navigation** — Home → Mission Console → System Notes
 - **Loading Sequence** — Animated boot screen before the mission console appears
@@ -42,6 +44,14 @@ npx serve .
 # or
 python3 -m http.server 8080
 ```
+
+Demo shortcut:
+
+```
+index.html#mission-critical
+```
+
+When served locally, `/#mission-critical` opens the Mission console and loads a close-approach scenario automatically.
 
 ---
 

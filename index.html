@@ -54,6 +54,15 @@
         projected orbital occupancy, and runs A* search so a threatened spacecraft can shift lanes before debris cuts
         across its path.
       </p>
+      <div class="mission-preview" aria-label="Animated mission preview diagram">
+        <div class="preview-earth"></div>
+        <div class="preview-orbit orbit-a"><span></span></div>
+        <div class="preview-orbit orbit-b"><span></span></div>
+        <div class="preview-orbit orbit-c"><span></span></div>
+        <div class="preview-debris debris-a"></div>
+        <div class="preview-debris debris-b"></div>
+        <div class="preview-route"></div>
+      </div>
       <div class="hero-actions">
         <button class="hero-btn primary" data-view-target="sim-view">Launch Mission Console</button>
         <button class="hero-btn secondary" data-view-target="about-view">Read System Model</button>
@@ -79,7 +88,7 @@
         <div class="panel-kicker">What Changed</div>
         <h2>From concept demo to connected mission simulation</h2>
         <p>
-          This upgraded single-file version adds a loading sequence, a home/introduction layer, tab-based navigation,
+          This upgraded static version adds a loading sequence, a home/introduction layer, tab-based navigation,
           and a tighter link between the orbital scene and the planner so the A* panel represents predicted risk
           instead of a disconnected random map.
         </p>
@@ -93,8 +102,8 @@
             <span>The grid is prepared from projected traffic and hazard occupancy rather than random debris scattering.</span>
           </div>
           <div class="feature-item">
-            <strong>Single-File Delivery</strong>
-            <span>Everything still ships in one HTML file, including the home experience, simulation, and system notes.</span>
+            <strong>Simple Static Delivery</strong>
+            <span>The app still runs without a build step while separating markup, styling, and simulation logic.</span>
           </div>
         </div>
       </section>
@@ -151,6 +160,17 @@
       <input type="range" class="ctrl-slider" id="speed-slider"
         min="0" max="100" value="50"
         oninput="onSpeedChange(this.value)">
+    </div>
+
+    <div class="ctrl-divider"></div>
+
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span>SCENARIO</span><span class="ctrl-label-val" id="scenario-val">LIVE</span></div>
+      <div class="scenario-grid">
+        <button class="scenario-btn" onclick="loadScenario('critical')">Critical</button>
+        <button class="scenario-btn" onclick="loadScenario('dense')">Dense</button>
+        <button class="scenario-btn" onclick="loadScenario('clear')">Clear</button>
+      </div>
     </div>
 
     <div class="ctrl-divider"></div>
@@ -223,6 +243,32 @@
     <div class="heuristic-row">
       <span>f(n) = g(n) + h(n)</span>
       <span>h = |Δx| + |Δy|</span>
+    </div>
+
+    <div class="route-insight" aria-live="polite">
+      <div class="insight-step active">
+        <span class="step-index">01</span>
+        <strong>Detect</strong>
+        <small id="risk-readout">Closest approach: scanning</small>
+      </div>
+      <div class="insight-rail"><span id="insight-rail-fill"></span></div>
+      <div class="insight-step">
+        <span class="step-index">02</span>
+        <strong>Plan</strong>
+        <small id="plan-readout">A* grid waiting for trigger</small>
+      </div>
+      <div class="insight-step">
+        <span class="step-index">03</span>
+        <strong>Execute</strong>
+        <small id="route-readout">No active reroute</small>
+      </div>
+    </div>
+
+    <div class="lane-diagram" aria-label="Visual path diagram">
+      <div class="lane-axis">TIME</div>
+      <div class="lane-row safe"><span>SAFE LANE</span><i></i></div>
+      <div class="lane-row path"><span>A* PATH</span><i id="lane-path-bar"></i></div>
+      <div class="lane-row danger"><span>DANGER</span><i id="lane-danger-bar"></i></div>
     </div>
 
     <div class="legend">
@@ -330,7 +376,7 @@
           </div>
           <div class="about-box">
             <h3>Single active reroute</h3>
-            <p>One avoidance plan runs at a time for clarity and to preserve performance in a single-file build.</p>
+            <p>One avoidance plan runs at a time for clarity and to preserve performance in a lightweight static build.</p>
           </div>
           <div class="about-box">
             <h3>Educational simplification</h3>
